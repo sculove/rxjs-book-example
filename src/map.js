@@ -71,15 +71,30 @@ export default class Map {
     }
     // 지도 위에 표시되는 info 윈도우를 토글한다.
     // 꼭! HTML문자열을 반환하는 render 함수를 구현해야한다.
-    toggleInfoWindow(marerkInfo) {
-        const before = this.infowindow.getPosition();
-        if (marerkInfo.position.equals(before) && this.infowindow.getMap()) {
-            this.infowindow.close();
-        } else {
-            this.naverMap.panTo(after, { duration: 300 });
-            // this.infowindow.setContent(this.render(marerkInfo));
-            // this.infowindow.open(this.naverMap, marerkInfo.marker);
-        }
+    // toggleInfoWindow(markerkInfo) {
+    //     const before = this.infowindow.getPosition();
+    //     if (markerkInfo.position.equals(before) && this.infowindow.getMap()) {
+    //         this.infowindow.close();
+    //     } else {
+    //         this.naverMap.panTo(after, { duration: 300 });
+    //         this.infowindow.setContent(this.render(markerkInfo));
+    //         this.infowindow.open(this.naverMap, markerkInfo.marker);
+    //     }
+    // }
+    // 알림창을 닫는다.
+    closeInfoWindow() {
+        this.infowindow.close();
+    }
+    // 알림창을 보여준다.
+    // 이때 대상 마커 인스턴스와 알리참에 보여줄 내용, 그리고 알림창이 보여질 위치 정보를 전달한다.
+    openInfoWindow(marker, position, content) {
+        this.naverMap.panTo(after, { duration: 300 });
+        this.infowindow.setContent(content);
+        this.infowindow.open(this.naverMap, marker);
+    }
+    // 전달된 위치 정보에서 알림창을 보여줘야하는 지(true) 감춰야하는지(false) 여부를 반환한다.
+    isToggleInfoWindow(position) {
+        return !!position.equals(this.infowindow.getPosition()) && this.infowindow.getMap();
     }
     // constructor($map, search$) {
     constructor($map) {
@@ -91,12 +106,14 @@ export default class Map {
             .let(this.manageMarker.bind(this))
             // .share()
             .let(this.mapMarkerClick)
+            .let(this.mapBus)
 
-        const buses$ = station$.let(this.mapBus);
-        Rx.Observable.combineLatest(
-            station$,
-            buses$
-        )
+        // const buses$ = station$
+        // Rx.Observable.combineLatest(
+        //     station$,
+        //     buses$
+        // )
+        station$
         .subscribe(markerInfo => console.log("1",markerInfo));
         // buses$.subscribe(markerInfo => console.log("2",markerInfo));
     }
@@ -111,10 +128,18 @@ export default class Map {
         return markerInfo$
             .switchMap(({id}) => Rx.Observable.ajax.getJSON(`/bus/pass/station/${id}`))
             .pluck("busRouteList")
+            .do(v => console.log("[mapBus1] ", v))
+            // .withLatestFrom(markerInfo$, (markerInfo, buses) => {
+            //     console.log(markerInfo, buses);
+
+            //     return buses;
+            // })
+            .do(v => console.log("[mapBus2] ", v))
     }
     mapStation(coord$) {
         return coord$.switchMap(coords => Rx.Observable.ajax.getJSON(`/station/around/${coords.longitude}/${coords.latitude}`))
             .pluck("busStationAroundList")
+            .do(v => console.log("[mapStation] ", v))
     }
     manageMarker(station$) {
         return station$
@@ -132,6 +157,7 @@ export default class Map {
                 return prev;
             }, [])
             .mergeMap(markers => Rx.Observable.from(markers))
+            .do(v => console.log("[manageMarker] ", v))
     }
     mapMarkerClick(marker$) {
         return marker$.mergeMap(marker => {
@@ -142,7 +168,8 @@ export default class Map {
                     id: overlay.getOptions("id"), // 버스정류소ID 정보를 얻음
                     name: overlay.getOptions("name") // 버스정류소 이름을 얻음
                 }));
-        });
+        })
+            .do(v => console.log("[mapMarkerClick] ", v))
     }
     
     // createBuses$(search$) {
