@@ -69,32 +69,21 @@ export default class Map {
             this.polyline = null;
         }
     }
-    // 지도 위에 표시되는 info 윈도우를 토글한다.
-    // 꼭! HTML문자열을 반환하는 render 함수를 구현해야한다.
-    // toggleInfoWindow(markerkInfo) {
-    //     const before = this.infowindow.getPosition();
-    //     if (markerkInfo.position.equals(before) && this.infowindow.getMap()) {
-    //         this.infowindow.close();
-    //     } else {
-    //         this.naverMap.panTo(after, { duration: 300 });
-    //         this.infowindow.setContent(this.render(markerkInfo));
-    //         this.infowindow.open(this.naverMap, markerkInfo.marker);
-    //     }
-    // }
-    // 알림창을 닫는다.
-    closeInfoWindow() {
-        this.infowindow.close();
-    }
-    // 알림창을 보여준다.
-    // 이때 대상 마커 인스턴스와 알리참에 보여줄 내용, 그리고 알림창이 보여질 위치 정보를 전달한다.
+    // 지도 위에 표시되는 정보창(infowindow)을 보여준다.
+    // 이때 대상 마커 인스턴스와 정보창에 보여줄 내용, 그리고 정보창이 보여질 위치 정보를 전달한다.
     openInfoWindow(marker, position, content) {
-        this.naverMap.panTo(after, { duration: 300 });
+        this.naverMap.panTo(position, { duration: 300 });
         this.infowindow.setContent(content);
         this.infowindow.open(this.naverMap, marker);
     }
-    // 전달된 위치 정보에서 알림창을 보여줘야하는 지(true) 감춰야하는지(false) 여부를 반환한다.
-    isToggleInfoWindow(position) {
-        return !!position.equals(this.infowindow.getPosition()) && this.infowindow.getMap();
+    // 지도 위에 표시되는 정보창(infowindow)을 닫는다.
+    closeInfoWindow() {
+        this.infowindow.close();
+    }
+    
+    // 전달된 위치 정보에서 정보창림을 보여줘야하는 지(true) 감춰야하는지(false) 여부를 반환한다.
+    isOpenInfoWindow(position) {
+        return !(position.equals(this.infowindow.getPosition()) && this.infowindow.getMap());
     }
     // constructor($map, search$) {
     constructor($map) {
@@ -104,18 +93,21 @@ export default class Map {
         const station$ = this.createDragend$()
             .let(this.mapStation)
             .let(this.manageMarker.bind(this))
-            // .share()
             .let(this.mapMarkerClick)
             .let(this.mapBus)
 
-        // const buses$ = station$
-        // Rx.Observable.combineLatest(
-        //     station$,
-        //     buses$
-        // )
         station$
-        .subscribe(markerInfo => console.log("1",markerInfo));
-        // buses$.subscribe(markerInfo => console.log("2",markerInfo));
+            .subscribe(({ markerInfo, buses}) => {
+                if (this.isOpenInfoWindow(markerInfo.position)) {
+                    this.openInfoWindow(
+                        markerInfo.marker,
+                        markerInfo.position,
+                        this.render(buses, markerInfo)
+                    );
+                } else {
+                    this.closeInfoWindow();
+                }
+            })
     }
     createDragend$() {
         return Rx.Observable.fromEvent(this.naverMap, "dragend") // 지도 영역을 dragend 했을 때
@@ -126,20 +118,19 @@ export default class Map {
     }
     mapBus(markerInfo$) {
         return markerInfo$
-            .switchMap(({id}) => Rx.Observable.ajax.getJSON(`/bus/pass/station/${id}`))
-            .pluck("busRouteList")
-            .do(v => console.log("[mapBus1] ", v))
-            // .withLatestFrom(markerInfo$, (markerInfo, buses) => {
-            //     console.log(markerInfo, buses);
-
-            //     return buses;
-            // })
-            .do(v => console.log("[mapBus2] ", v))
+            .switchMap(markerInfo => {
+                const marker$ = Rx.Observable.of(markerInfo);
+                const bus$ = Rx.Observable.ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
+                    .pluck("busRouteList");
+                return marker$.combineLatest(bus$, (marker, buses) => ({
+                    buses,
+                markerInfo
+            }));
+        });
     }
     mapStation(coord$) {
         return coord$.switchMap(coords => Rx.Observable.ajax.getJSON(`/station/around/${coords.longitude}/${coords.latitude}`))
             .pluck("busStationAroundList")
-            .do(v => console.log("[mapStation] ", v))
     }
     manageMarker(station$) {
         return station$
@@ -157,7 +148,6 @@ export default class Map {
                 return prev;
             }, [])
             .mergeMap(markers => Rx.Observable.from(markers))
-            .do(v => console.log("[manageMarker] ", v))
     }
     mapMarkerClick(marker$) {
         return marker$.mergeMap(marker => {
@@ -169,38 +159,16 @@ export default class Map {
                     name: overlay.getOptions("name") // 버스정류소 이름을 얻음
                 }));
         })
-            .do(v => console.log("[mapMarkerClick] ", v))
     }
-    
-    // createBuses$(search$) {
-    //     // search 메소드를 호출했을 경우에만 처리 (_search$$ 를 통해 전달 받음)
-    //     const stataions$ = this.createStation$(search$);
-    //     const marker$ = this.createMarker$(stataions$);
-    //     const markerClick$ = this.createMarkerClick$(marker$);
-
-    //     // stationId를 통해 해당 역을 지나가는 버스 리스트 조회 스트림
-    //     return markerClick$
-    //         .filter(({ marker }) => !!marker.mobileNo)
-    //         .switchMap(({ id }) => Rx.Observable.ajax.getJSON(`/bus/pass/station/${id}`))
-    //         .let(handleAjax("busRouteList"))
-    //         .withLatestFrom(markerClick$, (buses, markerInfo) => ({
-    //             ...markerInfo,
-    //             buses: buses.concat()
-    //         }))
-    //         .do(v => console.info("[buses]", v))
-    //         .finally(v => console.info("[finally-buses]", v))
-    // }
-
-    // infowindow에 표기할 정류소를 지나가는 버스들 표시
-    render({ stationId, stationName, buses}) {
-        let list = buses.map(bus => (`<dd>
-                <a href="#${bus.routeId}_${bus.routeName}_${stationId}">
+    render(buses, { id, name }) {
+        const list = buses.map(bus => (`<dd>
+                <a href="#${bus.routeId}_${bus.routeName}_${id}">
                     <strong>${bus.routeName}</strong> <span>${bus.regionName}</span> <span class="type ${getBuesType(bus.routeTypeName)}">${bus.routeTypeName}</span>
                 </a>
             </dd>`)).join("");
 
         return `<dl class="bus-routes">
-            <dt><strong>${stationName}</strong></dt>${list}
+            <dt><strong>${name}</strong></dt>${list}
         </dl>`;
     }
 }
