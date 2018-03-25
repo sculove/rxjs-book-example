@@ -1,4 +1,4 @@
-// import {handleAjax} from "./common.js";
+import {handleAjax} from "./common.js";
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -121,7 +121,7 @@ export default class Map {
             .switchMap(markerInfo => {
                 const marker$ = Rx.Observable.of(markerInfo);
                 const bus$ = Rx.Observable.ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
-                    .pluck("busRouteList");
+                    .let(handleAjax("busRouteList"));
                 return marker$.combineLatest(bus$, (marker, buses) => ({
                     buses,
                 markerInfo
@@ -130,7 +130,7 @@ export default class Map {
     }
     mapStation(coord$) {
         return coord$.switchMap(coords => Rx.Observable.ajax.getJSON(`/station/around/${coords.longitude}/${coords.latitude}`))
-            .pluck("busStationAroundList")
+            .let(handleAjax("busStationAroundList"))
     }
     manageMarker(station$) {
         return station$

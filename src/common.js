@@ -32,18 +32,18 @@
  * @returns 
  */
 export function handleAjax(property) {
-    return obs$ => obs$.mergeMap(jsonRes => {
+    return obs$ => obs$.map(jsonRes => {
         if (jsonRes.error) {
             if (jsonRes.error.code === "4") {   // 결과가 존재하지 않는 경우
-                return Rx.Observable.of([]);
+                return [];
             } else {
-                return Rx.Observable.throw(jsonRes.error);
+                throw jsonRes.error;
             }
         } else {
             if (Array.isArray(jsonRes[property])) {
-                return Rx.Observable.of(jsonRes[property]);
+                return jsonRes[property];
             } else {
-                return Rx.Observable.of([jsonRes[property]]);   // 1건만 전달된 경우 객체로 넘겨져 옮.
+                return [jsonRes[property]];   // 1건만 전달된 경우 객체로 넘겨져 옮.
             }
         }
     });
