@@ -160,9 +160,9 @@ export default class Map {
                 }));
         })
     }
-    render(buses, { id, name }) {
+    render(buses, { name }) {
         const list = buses.map(bus => (`<dd>
-                <a href="#${bus.routeId}_${bus.routeName}_${id}">
+                <a href="#${bus.routeId}_${bus.routeName}">
                     <strong>${bus.routeName}</strong> <span>${bus.regionName}</span> <span class="type ${getBuesType(bus.routeTypeName)}">${bus.routeTypeName}</span>
                 </a>
             </dd>`)).join("");
