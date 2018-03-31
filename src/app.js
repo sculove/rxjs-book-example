@@ -1,34 +1,28 @@
-// import {createShare$} from "./common.js";
 import AutoComplete from "./autocomplete.js";
 import Map from "./map.js";
 import Sidebar from "./sidebar.js";
+import {createShare$} from "./common.js";
 
-// const {
-//     render$,
-//     search$
-// } = createShare$();
+const {
+    render$,
+    search$
+} = createShare$();
 
 const search = new AutoComplete(document.querySelector(".autocomplete"));
-const map = new Map(document.querySelector(".map"));
-// const map = new Map(
-//     document.querySelector(".map"),
-//     search$
-// );
 const sidebar = new Sidebar(document.querySelector(".stations"));
+const map = new Map(
+    document.querySelector(".map"),
+    search$
+);
 
 // subscribe
-// render$
-//     .do(v => console.warn("===> render", v))
-//     .subscribe(stations => {
-//         if (stations.length) {
-//             sidebar.render(stations);
-//             map.drawPath(stations)
-//         } else {
-//             sidebar.close();
-//             map.deletePath();
-//         }
-//     });
-// search$
-//     .do(v => console.warn("===> search from share", v))
-//     .subscribe(coord => map.setCenter(coord))
-
+render$
+    .subscribe(stations => {
+        if (stations.length) {
+            map.drawPath(stations)
+            sidebar.render(stations);
+        } else {
+            map.deletePath();
+            sidebar.close();
+        }
+    });

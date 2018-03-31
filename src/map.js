@@ -86,11 +86,12 @@ export default class Map {
         return !(position.equals(this.infowindow.getPosition()) && this.infowindow.getMap());
     }
     // constructor($map, search$) {
-    constructor($map) {
+    constructor($map, search$) {
         this.naverMap = createNaverMap($map);
         this.infowindow = createNaverInfoWindow();
         
-        const station$ = this.createDragend$()
+        const station$ = search$
+            .merge(this.createDragend$())
             .let(this.mapStation)
             .let(this.manageMarker.bind(this))
             .let(this.mapMarkerClick)
