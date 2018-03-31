@@ -85,7 +85,6 @@ export default class Map {
     isOpenInfoWindow(position) {
         return !(position.equals(this.infowindow.getPosition()) && this.infowindow.getMap());
     }
-    // constructor($map, search$) {
     constructor($map, search$) {
         this.naverMap = createNaverMap($map);
         this.infowindow = createNaverInfoWindow();
