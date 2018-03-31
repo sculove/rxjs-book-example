@@ -1,5 +1,3 @@
-import {handleAjax} from "./common.js";
-
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
     if (/^광역/.test(name)) {
@@ -85,91 +83,8 @@ export default class Map {
     isOpenInfoWindow(position) {
         return !(position.equals(this.infowindow.getPosition()) && this.infowindow.getMap());
     }
-    // constructor($map, search$) {
-    constructor($map, search$) {
+    constructor($map) {
         this.naverMap = createNaverMap($map);
         this.infowindow = createNaverInfoWindow();
-        
-        const station$ = search$
-            .merge(this.createDragend$())
-            .let(this.mapStation)
-            .let(this.manageMarker.bind(this))
-            .let(this.mapMarkerClick)
-            .let(this.mapBus)
-
-        station$
-            .subscribe(({ markerInfo, buses}) => {
-                if (this.isOpenInfoWindow(markerInfo.position)) {
-                    this.openInfoWindow(
-                        markerInfo.marker,
-                        markerInfo.position,
-                        this.render(buses, markerInfo)
-                    );
-                } else {
-                    this.closeInfoWindow();
-                }
-            })
-    }
-    createDragend$() {
-        return Rx.Observable.fromEvent(this.naverMap, "dragend") // 지도 영역을 dragend 했을 때
-            .map(({ coord }) => ({
-                longitude: coord.x,
-                latitude: coord.y
-            }))
-    }
-    mapBus(markerInfo$) {
-        return markerInfo$
-            .switchMap(markerInfo => {
-                const marker$ = Rx.Observable.of(markerInfo);
-                const bus$ = Rx.Observable.ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
-                    .let(handleAjax("busRouteList"));
-                return marker$.combineLatest(bus$, (marker, buses) => ({
-                    buses,
-                markerInfo
-            }));
-        });
-    }
-    mapStation(coord$) {
-        return coord$.switchMap(coords => Rx.Observable.ajax.getJSON(`/station/around/${coords.longitude}/${coords.latitude}`))
-            .let(handleAjax("busStationAroundList"))
-    }
-    manageMarker(station$) {
-        return station$
-            .map(stations => stations.map(station => {
-                const marker = this.createMarker(station.stataionName, station.x, station.y);
-                // 버스정류소ID, 버스정류소 이름 정보를 marker에 저장
-                marker.setOptions("id", station.stationId);
-                marker.setOptions("name", station.stationName);
-                return marker;
-            }))
-            .scan((prev, markers) => {
-                // 이전 markers 삭제
-                prev.forEach(this.deleteMarker);
-                prev = markers;
-                return prev;
-            }, [])
-            .mergeMap(markers => Rx.Observable.from(markers))
-    }
-    mapMarkerClick(marker$) {
-        return marker$.mergeMap(marker => {
-                return Rx.Observable.fromEvent(marker, "click")
-                .map(({ overlay }) => ({
-                    marker: overlay,
-                    position: overlay.getPosition(),
-                    id: overlay.getOptions("id"), // 버스정류소ID 정보를 얻음
-                    name: overlay.getOptions("name") // 버스정류소 이름을 얻음
-                }));
-        })
-    }
-    render(buses, { name }) {
-        const list = buses.map(bus => (`<dd>
-                <a href="#${bus.routeId}_${bus.routeName}">
-                    <strong>${bus.routeName}</strong> <span>${bus.regionName}</span> <span class="type ${getBuesType(bus.routeTypeName)}">${bus.routeTypeName}</span>
-                </a>
-            </dd>`)).join("");
-
-        return `<dl class="bus-routes">
-            <dt><strong>${name}</strong></dt>${list}
-        </dl>`;
     }
 }
