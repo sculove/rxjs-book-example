@@ -2,7 +2,8 @@ require("isomorphic-fetch");
 const express = require("express");
 const app = express();
 const x2j = require("xml2json");
-const Rx = require("rxjs/Rx");
+const { from } = require("rxjs");
+const { switchMap, map, take } = require("rxjs/operators");
 
 /*
  * 공공데이터포털 인증키
@@ -17,22 +18,23 @@ const SERVICE_KEY = "MpmiwfwaQQGY9aZEbmf2UwD4K0mOx7X5H4twJWlLYCQ7h8GH0Rypsi41pMD
 app.use(express.static("./"));
 
 function createRemote$(url) {
-  return Rx.Observable
-  .fromPromise(fetch(url))
-  .switchMap(response => response.text())
-  .map(text => {
-    const response = x2j.toJson(text, {object: true}).response;
-    const header = response.msgHeader;
-    if(header.resultCode === "0") {
-      return response.msgBody;
-    } else {
-      return Rx.Observable.throw({
-        code: header.resultCode,
-        messge: header.resultMessage
-      });
-    }
-  })
-  .take(1)
+  return from(fetch(url))
+  .pipe(
+    switchMap(response => response.text()),
+    map(text => {
+      const response = x2j.toJson(text, {object: true}).response;
+      const header = response.msgHeader;
+      if(header.resultCode === "0") {
+        return response.msgBody;
+      } else {
+        return Rx.Observable.throw({
+          code: header.resultCode,
+          messge: header.resultMessage
+        });
+      }
+    }),
+    take(1)
+  );
 }
 
 const regexp = /:(\w+)/gi;
