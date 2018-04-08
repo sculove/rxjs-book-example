@@ -22,7 +22,6 @@ export default class AutoComplete {
     this.$layer = $autocomplete.querySelector(".layer"); 
     this.$loading = $autocomplete.querySelector(".loading");
 
-
     let [search$, reset$] = this.createKeyup$().pipe(partition(query => query.trim().length > 0));
     search$ = search$
     .pipe(
@@ -58,11 +57,11 @@ export default class AutoComplete {
   render(buses) {
     this.$layer.innerHTML = buses.map(bus => {
         return `<li>
-        <a href="#">
-            <strong>${bus.routeName}</strong>
-            <span>${bus.regionName}</span>
-            <div>${bus.routeTypeName}</div>
-        </a>
+          <a href="#${bus.routeId}_${bus.routeName}">
+              <strong>${bus.routeName}</strong>
+              <span>${bus.regionName}</span>
+              <div>${bus.routeTypeName}</div>
+          </a>
         </li>`;
     }).join("");
     this.$layer.style.display = "block";

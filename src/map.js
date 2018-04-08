@@ -1,9 +1,9 @@
 // map.js
 import {handleAjax} from "./common.js";
 
-const { fromEvent, from, of } = rxjs;
+const { fromEvent, from, of, merge } = rxjs;
 const { ajax } = rxjs.ajax;
-const { map, switchMap, pluck, mergeMap, scan, combineLatest } = rxjs.operators;
+const { map, switchMap, pluck, mergeMap, scan, combineLatest, tap } = rxjs.operators;
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -90,17 +90,19 @@ export default class Map {
     isOpenInfoWindow(position) {
         return !(position.equals(this.infowindow.getPosition()) && this.infowindow.getMap());
     }
-    constructor($map) {
+    constructor($map, search$) {
         this.naverMap = createNaverMap($map);
         this.infowindow = createNaverInfoWindow();
 
-        const station$ = this.createDragend$()
-            .pipe(
-                this.mapStation,
-                this.manageMarker.bind(this),
-                this.mapMarkerClick,
-                this.mapBus
-            );
+        const station$ = merge(
+            search$,
+            this.createDragend$()
+        ).pipe(
+            this.mapStation,
+            this.manageMarker.bind(this),
+            this.mapMarkerClick,
+            this.mapBus,
+        );
 
         station$.subscribe(({ markerInfo, buses}) => {
             if (this.isOpenInfoWindow(markerInfo.position)) {
@@ -167,7 +169,7 @@ export default class Map {
             switchMap(markerInfo => {
                 const marker$ = of(markerInfo);
                 const bus$ = ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
-                    .pipe(pluck("busRouteList"));
+                    .pipe(handleAjax("busRouteList"));
                 return marker$
                 .pipe(
                     combineLatest(bus$, (marker, buses) => ({
@@ -180,7 +182,7 @@ export default class Map {
     }
     render(buses, { name }) {
         const list = buses.map(bus => (`<dd>
-                <a href="#">
+                <a href="#${bus.routeId}_${bus.routeName}">
                     <strong>${bus.routeName}</strong> <span>${bus.regionName}</span> <span class="type ${getBuesType(bus.routeTypeName)}">${bus.routeTypeName}</span>
                 </a>
             </dd>`)).join("");
