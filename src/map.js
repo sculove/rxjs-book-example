@@ -1,3 +1,6 @@
+// map.js
+import {handleAjax} from "./common.js";
+
 const { fromEvent, from, of } = rxjs;
 const { ajax } = rxjs.ajax;
 const { map, switchMap, pluck, mergeMap, scan, combineLatest } = rxjs.operators;
@@ -93,7 +96,7 @@ export default class Map {
 
         const station$ = this.createDragend$()
             .pipe(
-                this.mapSatation,
+                this.mapStation,
                 this.manageMarker.bind(this),
                 this.mapMarkerClick,
                 this.mapBus
@@ -120,11 +123,11 @@ export default class Map {
             }))
         );
     }
-    mapSatation(coord$) {
+    mapStation(coord$) {
         return coord$
             .pipe(
                 switchMap(coord => ajax.getJSON(`/station/around/${coord.longitude}/${coord.latitude}`)),
-                pluck("busStationAroundList")
+                handleAjax("busStationAroundList")
             );
     }
     mapMarkerClick(marker$) {
