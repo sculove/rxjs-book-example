@@ -2,7 +2,7 @@ require("isomorphic-fetch");
 const express = require("express");
 const app = express();
 const x2j = require("xml2json");
-const { from } = require("rxjs");
+const { from, throwError } = require("rxjs");
 const { switchMap, map, take } = require("rxjs/operators");
 
 /*
@@ -27,7 +27,7 @@ function createRemote$(url) {
       if(header.resultCode === "0") {
         return response.msgBody;
       } else {
-        return Rx.Observable.throw({
+        return throwError({
           code: header.resultCode,
           messge: header.resultMessage
         });
