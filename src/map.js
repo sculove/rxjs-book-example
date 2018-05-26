@@ -1,9 +1,15 @@
 // map.js
 import {handleAjax} from "./common.js";
 
-const { fromEvent, from, of, merge } = rxjs;
+const {
+    fromEvent,
+    from,
+    of ,
+    merge,
+    combineLatest
+} = rxjs;
 const { ajax } = rxjs.ajax;
-const { map, switchMap, pluck, mergeMap, scan, combineLatest, tap } = rxjs.operators;
+const { map, switchMap, pluck, mergeMap, scan, tap } = rxjs.operators;
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -170,13 +176,10 @@ export default class Map {
                 const marker$ = of(markerInfo);
                 const bus$ = ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
                     .pipe(handleAjax("busRouteList"));
-                return marker$
-                .pipe(
-                    combineLatest(bus$, (marker, buses) => ({
+                return combineLatest(marker$, bus$, (marker, buses) => ({
                         buses,
                         markerInfo
-                    }))
-                );
+                    }));
             })
         );
     }
