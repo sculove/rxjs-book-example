@@ -1,5 +1,4 @@
 import { parseHash } from "./common.js";
-
 export default class Sidebar {
     constructor($sidebar) {
         this.$sidebar = $sidebar;
@@ -11,6 +10,7 @@ export default class Sidebar {
         const {
             routeNum
         } = parseHash();
+        this.$title.innerHTML = `${routeNum} 버스 노선`;  
         this.$list.innerHTML = stations.map(station => {
             return `<li>
                 <div class="line">
@@ -24,7 +24,6 @@ export default class Sidebar {
                 </div>
             </li>`;
         }).join("");
-        this.$title.innerHTML = `${routeNum} 버스 노선`;
         this.$sidebar.style.display = "block";
     }
     close() {

@@ -1,4 +1,9 @@
+// map.js
 import {handleAjax} from "./common.js";
+
+const { fromEvent, from, of, merge } = rxjs;
+const { ajax } = rxjs.ajax;
+const { map, switchMap, pluck, mergeMap, scan, combineLatest, tap } = rxjs.operators;
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -88,77 +93,92 @@ export default class Map {
     constructor($map, search$) {
         this.naverMap = createNaverMap($map);
         this.infowindow = createNaverInfoWindow();
-        
-        const station$ = search$
-            .merge(this.createDragend$())
-            .let(this.mapStation)
-            .let(this.manageMarker.bind(this))
-            .let(this.mapMarkerClick)
-            .let(this.mapBus)
 
-        station$
-            .subscribe(({ markerInfo, buses}) => {
-                if (this.isOpenInfoWindow(markerInfo.position)) {
-                    this.openInfoWindow(
-                        markerInfo.marker,
-                        markerInfo.position,
-                        this.render(buses, markerInfo)
-                    );
-                } else {
-                    this.closeInfoWindow();
-                }
-            })
-    }
-    createDragend$() {
-        return Rx.Observable.fromEvent(this.naverMap, "dragend") // 지도 영역을 dragend 했을 때
-            .map(({ coord }) => ({
-                longitude: coord.x,
-                latitude: coord.y
-            }))
-    }
-    mapBus(markerInfo$) {
-        return markerInfo$
-            .switchMap(markerInfo => {
-                const marker$ = Rx.Observable.of(markerInfo);
-                const bus$ = Rx.Observable.ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
-                    .let(handleAjax("busRouteList"));
-                return marker$.combineLatest(bus$, (marker, buses) => ({
-                    buses,
-                markerInfo
-            }));
+        const station$ = merge(
+            search$,
+            this.createDragend$()
+        ).pipe(
+            this.mapStation,
+            this.manageMarker.bind(this),
+            this.mapMarkerClick,
+            this.mapBus,
+        );
+
+        station$.subscribe(({ markerInfo, buses}) => {
+            if (this.isOpenInfoWindow(markerInfo.position)) {
+                this.openInfoWindow(
+                    markerInfo.marker,
+                    markerInfo.position,
+                    this.render(buses, markerInfo)
+                );
+            } else {
+                this.closeInfoWindow();
+            }
         });
     }
+    createDragend$() {
+        return fromEvent(this.naverMap, "dragend") // 지도 영역을 dragend 했을 때
+        .pipe(
+            map(({ coord }) => ({
+                latitude: coord.y,
+                longitude: coord.x
+            }))
+        );
+    }
     mapStation(coord$) {
-        return coord$.switchMap(coords => Rx.Observable.ajax.getJSON(`/station/around/${coords.longitude}/${coords.latitude}`))
-            .let(handleAjax("busStationAroundList"))
+        return coord$
+            .pipe(
+                switchMap(coord => ajax.getJSON(`/station/around/${coord.longitude}/${coord.latitude}`)),
+                handleAjax("busStationAroundList")
+            );
+    }
+    mapMarkerClick(marker$) {
+        return marker$
+        .pipe(
+            mergeMap(marker => fromEvent(marker, "click")),
+            map(({ overlay }) => ({
+                marker: overlay,
+                position: overlay.getPosition(),
+                id: overlay.getOptions("id"), // 버스정류소ID 정보를 얻음
+                name: overlay.getOptions("name") // 버스정류소 이름을 얻음
+            }))
+        );
     }
     manageMarker(station$) {
         return station$
-            .map(stations => stations.map(station => {
-                const marker = this.createMarker(station.stataionName, station.x, station.y);
+        .pipe(
+            map(stations => stations.map(station => {
+                const marker = this.createMarker(station.stationName, station.x, station.y);
                 // 버스정류소ID, 버스정류소 이름 정보를 marker에 저장
                 marker.setOptions("id", station.stationId);
                 marker.setOptions("name", station.stationName);
                 return marker;
-            }))
-            .scan((prev, markers) => {
+            })),
+            scan((prev, markers) => {
                 // 이전 markers 삭제
                 prev.forEach(this.deleteMarker);
                 prev = markers;
                 return prev;
-            }, [])
-            .mergeMap(markers => Rx.Observable.from(markers))
+            }, []),
+            mergeMap(markers => from(markers))
+        );
     }
-    mapMarkerClick(marker$) {
-        return marker$.mergeMap(marker => {
-                return Rx.Observable.fromEvent(marker, "click")
-                .map(({ overlay }) => ({
-                    marker: overlay,
-                    position: overlay.getPosition(),
-                    id: overlay.getOptions("id"), // 버스정류소ID 정보를 얻음
-                    name: overlay.getOptions("name") // 버스정류소 이름을 얻음
-                }));
-        })
+    mapBus(markerInfo$) {
+        return markerInfo$
+        .pipe(
+            switchMap(markerInfo => {
+                const marker$ = of(markerInfo);
+                const bus$ = ajax.getJSON(`/bus/pass/station/${markerInfo.id}`)
+                    .pipe(handleAjax("busRouteList"));
+                return marker$
+                .pipe(
+                    combineLatest(bus$, (marker, buses) => ({
+                        buses,
+                        markerInfo
+                    }))
+                );
+            })
+        );
     }
     render(buses, { name }) {
         const list = buses.map(bus => (`<dd>
@@ -166,9 +186,9 @@ export default class Map {
                     <strong>${bus.routeName}</strong> <span>${bus.regionName}</span> <span class="type ${getBuesType(bus.routeTypeName)}">${bus.routeTypeName}</span>
                 </a>
             </dd>`)).join("");
-
+    
         return `<dl class="bus-routes">
             <dt><strong>${name}</strong></dt>${list}
         </dl>`;
-    }
+    }    
 }
