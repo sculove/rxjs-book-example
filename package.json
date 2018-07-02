@@ -9,9 +9,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "isomorphic-fetch": "^2.2.1",
     "express": "^4.16.3",
-    "xml2json": "^0.11.0"
+    "isomorphic-fetch": "^2.2.1",
+    "xml2json-light": "^1.0.6"
   },
   "devDependencies": {
     "nodemon": "^1.17.5",

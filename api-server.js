@@ -1,7 +1,7 @@
 require("isomorphic-fetch");
 const express = require("express");
 const app = express();
-const x2j = require("xml2json");
+const x2j = require("xml2json-light");
 const { from, throwError } = require("rxjs");
 const { switchMap, map, take } = require("rxjs/operators");
 
@@ -22,7 +22,7 @@ function createRemote$(url) {
   .pipe(
     switchMap(response => response.text()),
     map(text => {
-      const response = x2j.toJson(text, {object: true}).response;
+      const response = x2j.xml2json(text).response;
       const header = response.msgHeader;
       if(header.resultCode === "0") {
         return response.msgBody;
